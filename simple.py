@@ -5,31 +5,49 @@ import logging
 import sys
 import os
 
-def check_logs():
-    log = logging.getLogger('')
-    log.addHandler(logging.StreamHandler(sys.stdout))
+def check_logs(log):
     log.warning('naitive: %s' % sys.argv[1])
     log.warning('naitive.encode: %s' % a.encode(sys.stdout.encoding))
     log.warning('wrong: %s' % foo)
 
-ssoe = sys.stdout.encoding
-ssie = sys.stdin.encoding
-print(sys.executable)
-c = os.environ.get('PYTHONIOENCODING')
-print("sys.stdout.encoding: %s" % ssoe)
-print("sys.stdin.encoding: %s" % ssie)
-print("PYTHONIOENCODING: %s" % c)
-print("sys.getdefaultencoding(): %s" % sys.getdefaultencoding())
-print("sys.getfilesystemencoding(): %s" % sys.getfilesystemencoding())
-print(u"Stöcker".encode(sys.stdout.encoding, errors='replace'))
-print(u"Стоескер".encode(sys.stdout.encoding, errors='replace'))
-print(u'ÅÄÖ'.encode(sys.stdout.encoding, errors='replace'))
-print('print: ', u'ща'.encode(sys.stdout.encoding))
-a = sys.argv[1].decode(sys.stdin.encoding)
+class StringIO:
+    def __init__(self, log):
+        self.py2 = sys.version < '3'
+        self.log = log.getChild('')
+        self.in_enc = sys.stdout.encoding
+        if self.in_enc is None:
+            self.in_enc = sys.getdefaultencoding()
+            self.log.warning('Only %f input decoding is supported for pipe mode' % self.in_enc)
+
+        self.out_enc = sys.stdout.encoding
+        if self.out_enc is None:
+            self.out_enc = sys.getdefaultencoding()
+            self.log.warning('Only %f output encoding is supported for pipe mode' % self.out_enc)
+
+    def get_in_str(self, string):
+        if self.py2:
+            return string.decode(self.in_enc)
+        else:
+            return string
+
+    def get_out_str(self, string):
+        if self.py2:
+            return string.encode(self.out_enc)
+        else:
+            return string
+
+
+log = logging.getLogger('')
+log.addHandler(logging.StreamHandler(sys.stdout))
+
+encoder = StringIO(log)
+print('print: %s' % encoder.get_out_str(u'ща'))
+a = encoder.get_in_str(sys.argv[1])
 if len(sys.argv) > 1:
-    print(type(a), type(a.encode(ssoe)))
-    print('param: ', a.encode(ssoe))
-    with open(a.encode(ssoe), 'w') as f:
+    b = encoder.get_out_str(a)
+    print(type(a), type(b))
+    print('param: ', b)
+    with open(b, 'w') as f:
         print("file: %s" % f)
 
 print('len(argv)=%s' % len(sys.argv))
